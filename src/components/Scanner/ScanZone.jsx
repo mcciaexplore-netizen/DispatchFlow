@@ -1,47 +1,28 @@
 import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { useCamera } from "../../hooks/useCamera";
-import { scanDispatchTag } from "../../services/geminiOCR";
-import { parseOCRResponse } from "../../services/parseOCRResponse";
+import { useScanner } from "../../hooks/useScanner";
 import CameraView from "./CameraView";
 import ImagePreview from "./ImagePreview";
 
 // scanFn: optional override — async (base64, apiKey) => parsedObject
 // label: optional header text override
 export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
-  const [scanning, setScanning] = useState(false);
-  const [image, setImage] = useState(null);
-  const [ocrResult, setOcrResult] = useState(null);
-  const [error, setError] = useState(null);
-  const [showRaw, setShowRaw] = useState(false);
+  const [image, setImage]           = useState(null);
+  const [showRaw, setShowRaw]       = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+
   const { isActive, videoRef, startCamera, stopCamera, captureFrame, error: cameraError } = useCamera();
+  const { isScanning, error, isQuota, result, hasLastImage, scan, retry, clearScanner } = useScanner();
 
   const noApiKey = !apiKey;
 
-  const runOCR = async (base64Image) => {
-    if (!apiKey) return;
-    setScanning(true);
-    setError(null);
-    setOcrResult(null);
-    try {
-      let parsed;
-      if (scanFn) {
-        // Custom scan function (e.g. invoice OCR) — expected to return already-parsed object
-        parsed = await scanFn(base64Image, apiKey);
-      } else {
-        const raw = await scanDispatchTag(base64Image, apiKey);
-        parsed = parseOCRResponse(raw);
-      }
-      setOcrResult(JSON.stringify(parsed, null, 2));
-      onOCRSuccess(parsed);
-    } catch (err) {
-      setError(err.message || "OCR failed. You can fill fields manually.");
-    } finally {
-      setScanning(false);
-    }
-  };
+  // Single entry point for every scan trigger (file, camera, drag-drop)
+  const handleScan = useCallback((base64) => {
+    scan(base64, apiKey, scanFn, onOCRSuccess);
+  }, [scan, apiKey, scanFn, onOCRSuccess]);
 
   const handleFileInput = (file) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -49,7 +30,7 @@ export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
     reader.onload = (e) => {
       setImage(e.target.result);
       stopCamera();
-      runOCR(e.target.result);
+      handleScan(e.target.result);
     };
     reader.readAsDataURL(file);
   };
@@ -59,21 +40,19 @@ export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
     if (frame) {
       setImage(frame);
       stopCamera();
-      runOCR(frame);
+      handleScan(frame);
     }
-  }, [captureFrame]);
+  }, [captureFrame, handleScan, stopCamera]);
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFileInput(file);
+    handleFileInput(e.dataTransfer.files[0]);
   };
 
   const clearImage = () => {
     setImage(null);
-    setOcrResult(null);
-    setError(null);
+    clearScanner();
   };
 
   return (
@@ -83,9 +62,7 @@ export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
       {noApiKey && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 text-sm text-amber-400">
           Add your Gemini API key in{" "}
-          <Link to="/settings" className="underline hover:text-amber-300 font-medium">
-            Settings
-          </Link>{" "}
+          <Link to="/settings" className="underline hover:text-amber-300 font-medium">Settings</Link>{" "}
           to enable OCR scanning. You can still fill fields manually below.
         </div>
       )}
@@ -110,7 +87,9 @@ export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
           }`}
         >
           <div className="text-4xl mb-3">📷</div>
-          <p className="text-gray-400 text-sm mb-4">Drag &amp; drop a tag image here, or use the buttons below</p>
+          <p className="text-slate-500 dark:text-gray-400 text-sm mb-4">
+            Drag &amp; drop a tag image here, or use the buttons below
+          </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={startCamera}
@@ -137,36 +116,89 @@ export default function ScanZone({ onOCRSuccess, apiKey, scanFn, label }) {
         </div>
       )}
 
-      {scanning && (
-        <div className="flex items-center gap-3 bg-[#2C2C2E] rounded-lg p-3">
-          <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-amber-400">Scanning tag... Extracting data</span>
+      {/* ── Scanning indicator ── */}
+      {isScanning && (
+        <div className="flex items-center gap-3 bg-slate-100 dark:bg-[#2C2C2E] rounded-lg p-3">
+          <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <span className="text-sm text-amber-600 dark:text-amber-400">Analyzing image with Gemini AI…</span>
         </div>
       )}
 
-      {!scanning && ocrResult && (
+      {/* ── Success panel ── */}
+      {!isScanning && result && (
         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-green-400 text-sm font-medium">✓ OCR Data Extracted Successfully</span>
+            <span className="text-green-600 dark:text-green-400 text-sm font-medium">✓ OCR Data Extracted Successfully</span>
             <button
               onClick={() => setShowRaw(!showRaw)}
-              className="text-xs text-gray-400 hover:text-gray-200 underline"
+              className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 underline"
             >
               {showRaw ? "Hide" : "Show"} raw output
             </button>
           </div>
           {showRaw && (
-            <pre className="text-xs text-gray-400 font-mono bg-[#141416] rounded p-2 overflow-auto max-h-40">
-              {ocrResult}
+            <pre className="text-xs text-slate-600 dark:text-gray-400 font-mono bg-slate-100 dark:bg-[#141416] rounded p-2 overflow-auto max-h-40">
+              {result}
             </pre>
+          )}
+          {/* Rescan after success */}
+          {hasLastImage && (
+            <button
+              onClick={retry}
+              className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors mt-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Re-scan this image
+            </button>
           )}
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
-          {error}
-          <span className="block mt-1 text-gray-500">You can still fill all fields manually below.</span>
+      {/* ── Error panel with Retry ── */}
+      {!isScanning && error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 space-y-2">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+
+          {isQuota ? (
+            <p className="text-xs text-slate-500 dark:text-gray-500">
+              API quota exceeded. Wait a moment before retrying — the app will automatically
+              fall back to Gemini 1.5 Flash when you retry.
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-gray-500">
+              You can retry the scan or fill all fields manually below.
+            </p>
+          )}
+
+          <div className="flex items-center gap-3 pt-1">
+            {hasLastImage && (
+              <button
+                onClick={retry}
+                disabled={isScanning}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg
+                           border border-slate-300 dark:border-[#3A3A3C]
+                           text-slate-700 dark:text-gray-300
+                           hover:border-amber-500 hover:text-amber-600 dark:hover:text-amber-400
+                           transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Retry Scan
+              </button>
+            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs text-slate-500 dark:text-gray-500 hover:text-slate-700 dark:hover:text-gray-300 underline"
+            >
+              Upload a different image
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFileInput(e.target.files[0])}
+            />
+          </div>
         </div>
       )}
     </div>

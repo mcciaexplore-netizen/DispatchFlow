@@ -1,5 +1,4 @@
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+import { GEMINI_MAX_TOKENS_INVOICE, GEMINI_TEMPERATURE, callGeminiWithFallback } from "../utils/geminiUtils";
 
 export async function scanInvoice(imageBase64, apiKey) {
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
@@ -70,33 +69,12 @@ IMPORTANT:
       },
     ],
     generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 2048,
+      temperature: GEMINI_TEMPERATURE,
+      maxOutputTokens: GEMINI_MAX_TOKENS_INVOICE,
     },
   };
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `Gemini API error: ${error.error?.message || response.statusText}`
-    );
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No response from Gemini");
-
-  const cleaned = text
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
-    .trim();
-  return JSON.parse(cleaned);
+  return callGeminiWithFallback(requestBody, apiKey);
 }
 
 // Sanitize the raw Gemini response into clean field strings

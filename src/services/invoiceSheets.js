@@ -1,4 +1,7 @@
-const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
+import { SHEETS_API_BASE, DEFAULT_INV_TAB, INVOICE_SHEET_RANGE, DEFAULT_RETRY_COUNT } from "../utils/constants";
+import { fetchWithRetry } from "../utils/retry";
+
+const SHEETS_API_URL = SHEETS_API_BASE;
 
 // Column order — must match the header row in the sheet
 const INVOICE_COLUMNS = [
@@ -47,32 +50,30 @@ export const INVOICE_SHEET_HEADERS = [
 ];
 
 export async function appendInvoiceToSheet(invoiceData, storageConfig) {
-  const { sheetsId, apiKey, tabName = "Invoices" } = storageConfig;
+  const { sheetsId, tabName = DEFAULT_INV_TAB, scriptUrl } = storageConfig;
+
+  if (!scriptUrl) {
+    throw new Error("Apps Script URL not configured. Add it in Settings → Data Storage.");
+  }
 
   const row = INVOICE_COLUMNS.map((col) => invoiceData[col] ?? "");
 
-  const response = await fetch(
-    `${SHEETS_API_URL}/${sheetsId}/values/${encodeURIComponent(tabName)}!A:AE:append?valueInputOption=USER_ENTERED&key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ values: [row] }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || "Failed to save invoice to Google Sheets");
-  }
+  // text/plain avoids CORS preflight; Apps Script still receives the JSON body
+  const response = await fetchWithRetry(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ sheetId: sheetsId, tabName, row }),
+    redirect: "follow",
+  }, DEFAULT_RETRY_COUNT);
 
   return response.json();
 }
 
 export async function fetchInvoiceHistory(storageConfig) {
-  const { sheetsId, apiKey, tabName = "Invoices" } = storageConfig;
+  const { sheetsId, apiKey, tabName = DEFAULT_INV_TAB } = storageConfig;
 
   const response = await fetch(
-    `${SHEETS_API_URL}/${sheetsId}/values/${encodeURIComponent(tabName)}!A:AE?key=${apiKey}`
+    `${SHEETS_API_URL}/${sheetsId}/values/${encodeURIComponent(tabName)}!${INVOICE_SHEET_RANGE}?key=${apiKey}`
   );
 
   if (!response.ok) return [];

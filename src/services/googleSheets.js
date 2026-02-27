@@ -1,7 +1,14 @@
-const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
+import { SHEETS_API_BASE, DEFAULT_SLIP_TAB, SLIP_SHEET_RANGE, DEFAULT_RETRY_COUNT } from "../utils/constants";
+import { fetchWithRetry } from "../utils/retry";
+
+const SHEETS_API_URL = SHEETS_API_BASE;
 
 export async function appendSlipToSheet(slipData, config) {
-  const { sheetsId, apiKey } = config;
+  const { sheetsId, tabName = DEFAULT_SLIP_TAB, scriptUrl } = config;
+
+  if (!scriptUrl) {
+    throw new Error("Apps Script URL not configured. Add it in Settings → Data Storage.");
+  }
 
   const row = [
     slipData.slipNumber,
@@ -24,27 +31,22 @@ export async function appendSlipToSheet(slipData, config) {
     slipData.status || "dispatched",
   ];
 
-  const response = await fetch(
-    `${SHEETS_API_URL}/${sheetsId}/values/Sheet1!A:R:append?valueInputOption=USER_ENTERED&key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ values: [row] }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to save to Google Sheets");
-  }
+  // text/plain avoids CORS preflight; Apps Script still receives the JSON body
+  const response = await fetchWithRetry(scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ sheetId: sheetsId, tabName, row }),
+    redirect: "follow",
+  }, DEFAULT_RETRY_COUNT);
 
   return response.json();
 }
 
 export async function fetchSlipHistory(config) {
-  const { sheetsId, apiKey } = config;
+  const { sheetsId, apiKey, tabName = DEFAULT_SLIP_TAB } = config;
 
   const response = await fetch(
-    `${SHEETS_API_URL}/${sheetsId}/values/Sheet1!A:R?key=${apiKey}`
+    `${SHEETS_API_URL}/${sheetsId}/values/${encodeURIComponent(tabName)}!${SLIP_SHEET_RANGE}?key=${apiKey}`
   );
 
   if (!response.ok) return [];

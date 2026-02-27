@@ -1,10 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { LS_KEYS } from "../utils/constants";
 import SlipPreview from "../components/SlipPreview/SlipPreview";
 
 export default function SlipDetailPage() {
   const { slipNumber } = useParams();
-  const [slips] = useLocalStorage("dispatchflow_slips", []);
+  const [slips] = useLocalStorage(LS_KEYS.SLIPS, []);
   const navigate = useNavigate();
 
   const slip = slips.find((s) => s.slipNumber === slipNumber);
@@ -12,7 +14,9 @@ export default function SlipDetailPage() {
   if (!slip) {
     return (
       <div className="card text-center py-12">
-        <div className="text-4xl mb-3">🔍</div>
+        <div className="flex justify-center mb-3">
+          <Search className="w-10 h-10 text-slate-300 dark:text-gray-600" />
+        </div>
         <p className="text-gray-400">Slip not found.</p>
         <button onClick={() => navigate("/history")} className="btn-secondary mt-4 text-sm">
           Back to History

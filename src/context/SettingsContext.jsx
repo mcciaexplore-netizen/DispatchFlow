@@ -1,9 +1,10 @@
 import { createContext, useContext, useState } from "react";
 import config from "../config";
+import { LS_KEYS } from "../utils/constants";
 
 const SettingsContext = createContext(null);
 
-const STORAGE_KEY = "dispatchflow_settings";
+const STORAGE_KEY = LS_KEYS.SETTINGS;
 
 function load() {
   try {
@@ -24,13 +25,14 @@ export function extractSheetId(urlOrId) {
   return match ? match[1] : urlOrId;
 }
 
-function makeStorage(rawId, rawApiKey, tabName, envId, envApiKey, defaultTab) {
+function makeStorage(rawId, rawApiKey, tabName, scriptUrl, envId, envApiKey, defaultTab) {
   const sheetsId = rawId ? extractSheetId(rawId) : extractSheetId(envId);
   const apiKey = rawApiKey ?? envApiKey;
   return {
     sheetsId,
     apiKey,
     tabName: tabName || defaultTab,
+    scriptUrl: scriptUrl || "",
     get enabled() {
       return !!(this.sheetsId && this.apiKey);
     },
@@ -63,17 +65,21 @@ export function SettingsProvider({ children }) {
       settings.slipsSheetId ?? settings.sheetsId,
       settings.slipsSheetApiKey ?? settings.sheetsApiKey,
       settings.slipsTabName,
+      settings.slipsScriptUrl,
       config.sheets.sheetsId,
       config.sheets.apiKey,
       "Sheet1"
     ),
-    // Invoice storage — separate config
+    // Invoice storage — falls back to slips sheet/key when fields are blank or "same key" is ticked
     invoiceStorage: makeStorage(
-      settings.invoicesSheetId,
-      settings.invoicesSheetApiKey,
+      settings.invoicesSheetId || settings.slipsSheetId || settings.sheetsId,
+      settings.invoicesSameApiKey
+        ? (settings.slipsSheetApiKey || settings.sheetsApiKey)
+        : (settings.invoicesSheetApiKey || settings.slipsSheetApiKey || settings.sheetsApiKey),
       settings.invoicesTabName,
-      "",
-      "",
+      settings.invoicesScriptUrl || settings.slipsScriptUrl,
+      config.sheets.sheetsId,
+      config.sheets.apiKey,
       "Invoices"
     ),
     // Keep legacy 'sheets' alias so existing CreateSlipPage code keeps working

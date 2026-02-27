@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SettingsProvider } from "./context/SettingsContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Header from "./components/Layout/Header";
 import Footer from "./components/Layout/Footer";
 import Dashboard from "./components/Dashboard/Dashboard";
@@ -13,11 +14,12 @@ import InvoiceDetailPage from "./pages/InvoiceDetailPage";
 
 export default function App() {
   return (
-    <SettingsProvider>
+    <ThemeProvider>
+      <SettingsProvider>
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col bg-[#141416]">
+        <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#141416] transition-colors duration-200">
           <Header />
-          <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+          <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/create" element={<CreateSlipPage />} />
@@ -32,6 +34,7 @@ export default function App() {
           <Footer />
         </div>
       </BrowserRouter>
-    </SettingsProvider>
+      </SettingsProvider>
+    </ThemeProvider>
   );
 }

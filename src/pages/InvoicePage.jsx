@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ScanZone from "../components/Scanner/ScanZone";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useSettings } from "../context/SettingsContext";
+import { LS_KEYS } from "../utils/constants";
 import { scanInvoice, parseInvoiceOCR } from "../services/invoiceOCR";
 import { appendInvoiceToSheet } from "../services/invoiceSheets";
 import { generateInvoiceId } from "../services/invoiceIdGenerator";
@@ -161,7 +162,7 @@ export default function InvoicePage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState(null);
   const [pendingInvoice, setPendingInvoice] = useState(null);
-  const [invoices, setInvoices] = useLocalStorage("dispatchflow_invoices", []);
+  const [invoices, setInvoices] = useLocalStorage(LS_KEYS.INVOICES, []);
   const navigate = useNavigate();
   const { merged } = useSettings();
 
@@ -197,14 +198,18 @@ export default function InvoicePage() {
     setSaving(true);
     setSaveMsg(null);
 
-    setInvoices((prev) => [pendingInvoice, ...prev]);
+    let prevInvoices;
+    setInvoices((prev) => { prevInvoices = prev; return [pendingInvoice, ...prev]; });
 
     if (merged.invoiceStorage.enabled) {
       try {
         await appendInvoiceToSheet(pendingInvoice, merged.invoiceStorage);
         setSaveMsg({ type: "success", text: "Invoice saved and synced to Google Sheets." });
       } catch {
-        setSaveMsg({ type: "warning", text: "Saved locally. Cloud sync failed." });
+        setInvoices(prevInvoices);
+        setSaveMsg({ type: "error", text: "Cloud sync failed. Invoice was not saved — please try again." });
+        setSaving(false);
+        return;
       }
     } else {
       setSaveMsg({ type: "success", text: "Invoice saved successfully!" });
@@ -224,7 +229,13 @@ export default function InvoicePage() {
     return (
       <div className="space-y-4">
         {saveMsg && (
-          <div className={`rounded-lg p-3 text-sm ${saveMsg.type === "success" ? "bg-green-500/10 border border-green-500/30 text-green-400" : "bg-amber-500/10 border border-amber-500/30 text-amber-400"}`}>
+          <div className={`rounded-lg p-3 text-sm ${
+            saveMsg.type === "success"
+              ? "bg-green-500/10 border border-green-500/30 text-green-400"
+              : saveMsg.type === "error"
+              ? "bg-red-500/10 border border-red-500/30 text-red-400"
+              : "bg-amber-500/10 border border-amber-500/30 text-amber-400"
+          }`}>
             {saveMsg.text}
           </div>
         )}
@@ -237,7 +248,7 @@ export default function InvoicePage() {
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
         <h1 className="text-xl font-bold">Scan & Digitize Invoice</h1>
-        <span className="text-xs bg-[#2C2C2E] text-gray-400 px-2 py-1 rounded">Step 1 of 2</span>
+        <span className="text-xs bg-slate-200 dark:bg-[#2C2C2E] text-slate-500 dark:text-gray-400 px-2 py-1 rounded">Step 1 of 2</span>
       </div>
 
       {!merged.geminiApiKey && (

@@ -1,6 +1,7 @@
 import { formatDate, formatDateTime } from "../../utils/formatters";
 import { printSlip } from "./PrintHandler";
 import { useSettings } from "../../context/SettingsContext";
+import { Printer, CheckCircle, Loader2 } from "lucide-react";
 
 export default function SlipPreview({ slipData, onBack, onSave, saving }) {
   const { merged } = useSettings();
@@ -13,12 +14,14 @@ export default function SlipPreview({ slipData, onBack, onSave, saving }) {
           ← Back to Edit
         </button>
         <div className="flex gap-2">
-          <button onClick={() => printSlip(slipData, company)} className="btn-secondary text-sm">
-            🖨️ Print
+          <button onClick={() => printSlip(slipData, company)} className="btn-secondary text-sm flex items-center gap-1.5">
+            <Printer className="w-4 h-4" /> Print
           </button>
           {onSave && (
-            <button onClick={onSave} disabled={saving} className="btn-primary text-sm">
-              {saving ? "Saving..." : "✓ Save & Finalize"}
+            <button onClick={onSave} disabled={saving} className="btn-primary text-sm flex items-center gap-1.5">
+              {saving
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                : <><CheckCircle className="w-4 h-4" /> Save &amp; Finalize</>}
             </button>
           )}
         </div>

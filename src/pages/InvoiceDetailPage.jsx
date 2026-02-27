@@ -1,19 +1,42 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { CheckCircle, Clock, AlertCircle, Search } from "lucide-react";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { LS_KEYS } from "../utils/constants";
 import { formatDate, formatDateTime } from "../utils/formatters";
+
+function getPaymentStatus(inv) {
+  if (inv.paymentStatus === "paid") return "paid";
+  if (inv.dueDate) {
+    const due = new Date(inv.dueDate);
+    due.setHours(23, 59, 59, 999);
+    if (due < new Date()) return "overdue";
+  }
+  return "pending";
+}
+
+const STATUS_CONFIG = {
+  paid:    { label: "Paid",    cls: "bg-green-500/15 text-green-600 border-green-500/30",  Icon: CheckCircle },
+  pending: { label: "Pending", cls: "bg-amber-500/15 text-amber-600 border-amber-500/30",  Icon: Clock },
+  overdue: { label: "Overdue", cls: "bg-red-500/15   text-red-600   border-red-500/30",    Icon: AlertCircle },
+};
 
 export default function InvoiceDetailPage() {
   const { invoiceId } = useParams();
-  const [invoices] = useLocalStorage("dispatchflow_invoices", []);
+  const [invoices, setInvoices] = useLocalStorage(LS_KEYS.INVOICES, []);
   const navigate = useNavigate();
 
   const inv = invoices.find((i) => i.invoiceId === invoiceId);
 
+  const handleMarkPaid = () =>
+    setInvoices((p) => p.map((i) => i.invoiceId === invoiceId ? { ...i, paymentStatus: "paid" } : i));
+
   if (!inv) {
     return (
       <div className="card text-center py-12">
-        <div className="text-4xl mb-3">🔍</div>
-        <p className="text-gray-400">Invoice not found.</p>
+        <div className="flex justify-center mb-3">
+          <Search className="w-10 h-10 text-slate-300 dark:text-gray-600" />
+        </div>
+        <p className="text-slate-500">Invoice not found.</p>
         <button onClick={() => navigate("/invoices/history")} className="btn-secondary mt-4 text-sm">
           Back to Invoice Records
         </button>
@@ -21,22 +44,38 @@ export default function InvoiceDetailPage() {
     );
   }
 
+  const status = getPaymentStatus(inv);
+  const statusCfg = STATUS_CONFIG[status];
+
   const Row = ({ label, value }) =>
     value ? (
       <div className="flex gap-2 text-xs">
         <span className="text-gray-500 w-32 flex-shrink-0">{label}</span>
-        <span className="text-gray-200">{value}</span>
+        <span className="text-slate-800 dark:text-gray-200">{value}</span>
       </div>
     ) : null;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate("/invoices/history")} className="btn-secondary text-sm">
           ← Back
         </button>
         <h1 className="text-lg font-bold">Invoice Detail</h1>
         <span className="slip-number text-sm">{inv.invoiceId}</span>
+        <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${statusCfg.cls}`}>
+          <statusCfg.Icon className="w-3.5 h-3.5" />
+          {statusCfg.label}
+        </span>
+        {status !== "paid" && (
+          <button
+            onClick={handleMarkPaid}
+            className="ml-auto text-xs px-3 py-1.5 rounded-lg border border-green-500/40 text-green-600 dark:text-green-400 hover:bg-green-500/10 transition-colors font-medium"
+          >
+            <CheckCircle className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
+            Mark as Paid
+          </button>
+        )}
       </div>
 
       <div className="bg-white text-gray-900 rounded-xl p-5 shadow-xl text-sm space-y-4">

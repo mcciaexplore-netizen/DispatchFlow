@@ -4,7 +4,7 @@ import { fetchSlipHistory } from "../services/googleSheets";
 import { fetchInvoiceHistory } from "../services/invoiceSheets";
 
 const GEMINI_TEST_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 async function testGeminiKey(apiKey) {
   const res = await fetch(`${GEMINI_TEST_URL}?key=${apiKey}`, {
@@ -26,7 +26,7 @@ function SecretField({ label, value, onChange, placeholder, hint }) {
   const [show, setShow] = useState(false);
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-gray-400">{label}</label>
+      <label className="text-xs font-medium text-slate-600 dark:text-gray-400">{label}</label>
       <div className="relative">
         <input
           type={show ? "text" : "password"}
@@ -74,11 +74,11 @@ function SheetStorageSection({ title, description, fields, onTest, testStatus, t
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-semibold text-gray-200">{title}</p>
+        <p className="text-sm font-semibold text-slate-800 dark:text-gray-200">{title}</p>
         {description && <p className="text-xs text-gray-500 mt-0.5">{description}</p>}
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-400">Google Sheet URL or ID</label>
+        <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Google Sheet URL or ID</label>
         <input
           className="input-field text-sm"
           placeholder="https://docs.google.com/spreadsheets/d/... or paste Sheet ID"
@@ -92,7 +92,7 @@ function SheetStorageSection({ title, description, fields, onTest, testStatus, t
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-400">Tab / Sheet Name</label>
+        <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Tab / Sheet Name</label>
         <input
           className="input-field text-sm w-48"
           placeholder={fields.tabPlaceholder || "Sheet1"}
@@ -107,9 +107,21 @@ function SheetStorageSection({ title, description, fields, onTest, testStatus, t
         onChange={fields.onApiKey}
         placeholder="AIzaSy..."
       />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-slate-600 dark:text-gray-400">
+          Apps Script URL <span className="text-amber-500 font-normal">(required for writing data)</span>
+        </label>
+        <input
+          className="input-field text-sm font-mono"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          value={fields.scriptUrl || ""}
+          onChange={(e) => fields.onScriptUrl && fields.onScriptUrl(e.target.value)}
+        />
+        <p className="text-xs text-gray-600">Deploy <span className="font-mono">GoogleAppsScript.js</span> (project root) as a Web App and paste the URL here.</p>
+      </div>
       {headerNote && (
-        <div className="bg-[#141416] rounded-lg p-3 text-xs text-gray-500 font-mono leading-relaxed">
-          <p className="text-gray-400 mb-1 font-sans">Required header row (copy into Row 1 of the tab):</p>
+        <div className="bg-slate-100 dark:bg-[#141416] rounded-lg p-3 text-xs text-slate-500 dark:text-gray-500 font-mono leading-relaxed">
+          <p className="text-slate-600 dark:text-gray-400 mb-1 font-sans">Required header row (copy into Row 1 of the tab):</p>
           {headerNote}
         </div>
       )}
@@ -132,10 +144,12 @@ export default function SettingsPage() {
     slipsSheetId: settings.slipsSheetId ?? settings.sheetsId ?? "",
     slipsSheetApiKey: settings.slipsSheetApiKey ?? settings.sheetsApiKey ?? "",
     slipsTabName: settings.slipsTabName ?? "",
+    slipsScriptUrl: settings.slipsScriptUrl ?? "",
     // Invoices storage
     invoicesSheetId: settings.invoicesSheetId ?? "",
     invoicesSheetApiKey: settings.invoicesSheetApiKey ?? "",
     invoicesTabName: settings.invoicesTabName ?? "",
+    invoicesScriptUrl: settings.invoicesScriptUrl ?? "",
     invoicesSameApiKey: settings.invoicesSameApiKey ?? false,
     // Company
     companyName: settings.companyName ?? "",
@@ -194,9 +208,11 @@ export default function SettingsPage() {
           slipsSheetId: imported.slipsSheetId ?? imported.sheetsId ?? "",
           slipsSheetApiKey: imported.slipsSheetApiKey ?? imported.sheetsApiKey ?? "",
           slipsTabName: imported.slipsTabName ?? "",
+          slipsScriptUrl: imported.slipsScriptUrl ?? "",
           invoicesSheetId: imported.invoicesSheetId ?? "",
           invoicesSheetApiKey: imported.invoicesSheetApiKey ?? "",
           invoicesTabName: imported.invoicesTabName ?? "",
+          invoicesScriptUrl: imported.invoicesScriptUrl ?? "",
           invoicesSameApiKey: imported.invoicesSameApiKey ?? false,
           companyName: imported.companyName ?? "",
           companyAddress: imported.companyAddress ?? "",
@@ -336,6 +352,8 @@ export default function SettingsPage() {
               tabPlaceholder: "Sheet1",
               apiKey: form.slipsSheetApiKey,
               onApiKey: (v) => setField("slipsSheetApiKey", v),
+              scriptUrl: form.slipsScriptUrl,
+              onScriptUrl: (v) => setField("slipsScriptUrl", v),
             }}
             headerNote={
               <span>
@@ -360,6 +378,8 @@ export default function SettingsPage() {
               tabPlaceholder: "Invoices",
               apiKey: form.invoicesSameApiKey ? form.slipsSheetApiKey : form.invoicesSheetApiKey,
               onApiKey: (v) => setField("invoicesSheetApiKey", v),
+              scriptUrl: form.invoicesScriptUrl,
+              onScriptUrl: (v) => setField("invoicesScriptUrl", v),
             }}
             headerNote={
               <span>
@@ -391,16 +411,15 @@ export default function SettingsPage() {
           <p>3. Paste the header rows above into Row 1 of each tab.</p>
           <p>4. Share the spreadsheet → <strong>Anyone with link → Editor</strong>.</p>
           <p>
-            5. Get an API key from{" "}
-            <a
-              href="https://console.cloud.google.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-amber-500 hover:underline"
-            >
-              Google Cloud Console
-            </a>{" "}
-            (enable Google Sheets API first).
+            5. Get a read API key from{" "}
+            <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" className="text-amber-500 hover:underline">Google Cloud Console</a>{" "}
+            (enable Google Sheets API). Used for reading history only.
+          </p>
+          <p>
+            6. For <strong className="text-gray-400">writing data</strong>: open{" "}
+            <a href="https://script.google.com" target="_blank" rel="noreferrer" className="text-amber-500 hover:underline">script.google.com</a>,
+            paste the contents of <span className="font-mono text-gray-400">GoogleAppsScript.js</span> (project root),
+            deploy as Web App (<em>Execute as: Me, Who has access: Anyone</em>), and paste the URL in the Apps Script URL field above.
           </p>
         </div>
       </div>
@@ -410,7 +429,7 @@ export default function SettingsPage() {
         <p className="section-header">Company Details</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2 flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">Company Name</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Company Name</label>
             <input
               className="input-field text-sm"
               placeholder="Mehta Engineering Pvt Ltd"
@@ -419,7 +438,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="sm:col-span-2 flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">Address</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Address</label>
             <textarea
               className="input-field resize-none text-sm"
               rows={2}
@@ -429,7 +448,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">GSTIN</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">GSTIN</label>
             <input
               className="input-field font-mono text-sm uppercase"
               placeholder="27AABCM1234F1Z5"
@@ -438,7 +457,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">Phone</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Phone</label>
             <input
               className="input-field text-sm"
               placeholder="+91 98765 43210"
@@ -447,7 +466,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">Email</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Email</label>
             <input
               className="input-field text-sm"
               placeholder="dispatch@company.com"
@@ -456,7 +475,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-400">Logo URL (optional)</label>
+            <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Logo URL (optional)</label>
             <input
               className="input-field text-sm"
               placeholder="https://..."
@@ -467,12 +486,12 @@ export default function SettingsPage() {
         </div>
 
         {/* Live company header preview */}
-        <div className="border border-[#3A3A3C] rounded-lg p-3 bg-[#141416]">
-          <p className="text-xs text-gray-600 mb-2">Slip header preview</p>
+        <div className="border border-slate-200 dark:border-[#3A3A3C] rounded-lg p-3 bg-slate-50 dark:bg-[#141416]">
+          <p className="text-xs text-slate-400 dark:text-gray-600 mb-2">Slip header preview</p>
           <div className="flex justify-between items-start">
             <div>
-              <div className="font-bold text-sm text-white">{previewCompany.name}</div>
-              <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+              <div className="font-bold text-sm text-slate-900 dark:text-white">{previewCompany.name}</div>
+              <div className="text-xs text-slate-500 dark:text-gray-500 mt-0.5 leading-relaxed">
                 {previewCompany.address}<br />
                 GSTIN: {previewCompany.gstin} | {previewCompany.phone} | {previewCompany.email}
               </div>
@@ -488,7 +507,7 @@ export default function SettingsPage() {
       <div className="card space-y-4">
         <p className="section-header">Slip Settings</p>
         <div className="flex flex-col gap-1 max-w-xs">
-          <label className="text-xs font-medium text-gray-400">Slip Number Prefix</label>
+          <label className="text-xs font-medium text-slate-600 dark:text-gray-400">Slip Number Prefix</label>
           <input
             className="input-field font-mono text-sm uppercase w-32"
             placeholder="DS"

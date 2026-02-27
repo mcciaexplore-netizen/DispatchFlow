@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Invoice</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e0e0e0; padding: 40px; display: flex; justify-content: center; }
+        .invoice-box {
+            max-width: 800px;
+            background: #fff;
+            padding: 30px;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            font-size: 16px;
+            line-height: 24px;
+            color: #555;
+        }
+        .invoice-box table { width: 100%; line-height: inherit; text-align: left; border-collapse: collapse; }
+        .invoice-box table td { padding: 5px; vertical-align: top; }
+        .invoice-box table tr td:nth-child(2) { text-align: right; }
+        .top .title { font-size: 45px; line-height: 45px; color: #333; }
+        .information table { padding-bottom: 40px; }
+        .heading td { background: #eee; border-bottom: 1px solid #ddd; font-weight: bold; }
+        .details td { padding-bottom: 20px; }
+        .item td { border-bottom: 1px solid #eee; }
+        .item.last td { border-bottom: none; }
+        .total td:nth-child(2) { border-top: 2px solid #eee; font-weight: bold; }
+        .hsn { font-size: 12px; color: #888; }
+        .bank-details { margin-top: 30px; padding: 10px; background: #f9f9f9; border: 1px dashed #ccc; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="invoice-box">
+        <table>
+            <tr class="top">
+                <td colspan="2">
+                    <table>
+                        <tr>
+                            <td class="title">
+                                <h1>INVOICE</h1>
+                            </td>
+                            <td>
+                                Invoice #: INV-2026-001<br>
+                                Date: February 27, 2026<br>
+                                Due Date: March 15, 2026
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="information">
+                <td colspan="2">
+                    <table>
+                        <tr>
+                            <td>
+                                <b>Vendor (Supplier):</b><br>
+                                ACME Industrial Supplies Pvt Ltd<br>
+                                123 Manufacturing Lane<br>
+                                Mumbai, Maharashtra 400001<br>
+                                GSTIN: 27ABCDE1234F1Z5
+                            </td>
+                            <td>
+                                <b>Bill To (Buyer):</b><br>
+                                Dali & Samir<br>
+                                Plot 45, MIDC Bhosari<br>
+                                Pune, Maharashtra 411026<br>
+                                GSTIN: 27AABCM1234F1Z5
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="heading">
+                <td>Item Description</td>
+                <td>Price (₹)</td>
+            </tr>
+            <tr class="item">
+                <td>
+                    Industrial  Oil (200L Drum) <br>
+                    <span class="hsn">HSN: 2710</span>
+                </td>
+                <td>₹ 75,000.00</td>
+            </tr>
+            <tr class="item">
+                <td>
+                    Safety Gloves - Heavy Duty (Pack of 50) <br>
+                    <span class="hsn">HSN: 6116</span>
+                </td>
+                <td>₹ 5,000.00</td>
+            </tr>
+            <tr class="item last">
+                <td>
+                    Machine Maintenance Service (Feb '26) <br>
+                    <span class="hsn">SAC: 9987</span>
+                </td>
+                <td>₹ 15,000.00</td>
+            </tr>
+            <tr class="total">
+                <td></td>
+                <td>
+                    Sub Total: ₹ 95,000.00<br>
+                    CGST (9%): ₹ 8,550.00<br>
+                    SGST (9%): ₹ 8,550.00<br>
+                    Total: ₹ 112,100.00
+                </td>
+            </tr>
+        </table>
+        
+        <div class="bank-details">
+            <b>Bank Details for Payment:</b><br>
+            Bank Limit: State Bank of India<br>
+            Account No: 123456789012<br>
+            IFSC: SBIN0001234<br>
+            Branch: Andheri East
+        </div>
+    </div>
+</body>
+</html>

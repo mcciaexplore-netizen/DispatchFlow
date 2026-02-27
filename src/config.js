@@ -9,7 +9,7 @@ const config = {
   },
   gemini: {
     apiKey: import.meta.env.VITE_GEMINI_API_KEY || "",
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-flash",
   },
   sheets: {
     enabled: !!import.meta.env.VITE_GOOGLE_SHEETS_ID,

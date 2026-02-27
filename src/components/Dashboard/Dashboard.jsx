@@ -3,9 +3,11 @@ import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { getTodayCount } from "../../services/slipGenerator";
 import { formatDate } from "../../utils/formatters";
 import { useSettings } from "../../context/SettingsContext";
+import { LS_KEYS } from "../../utils/constants";
+import { Truck, Settings, Lightbulb } from "lucide-react";
 
 export default function Dashboard() {
-  const [slips] = useLocalStorage("dispatchflow_slips", []);
+  const [slips] = useLocalStorage(LS_KEYS.SLIPS, []);
   const navigate = useNavigate();
   const todayCount = getTodayCount();
   const { merged } = useSettings();
@@ -18,7 +20,7 @@ export default function Dashboard() {
       {/* Setup banners */}
       {!hasGeminiKey && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-          <span className="text-2xl">⚙️</span>
+          <Settings className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold text-amber-400 text-sm">Configure Gemini API Key</p>
             <p className="text-xs text-gray-400 mt-1">
@@ -32,8 +34,8 @@ export default function Dashboard() {
         </div>
       )}
       {!hasSheetsConfig && (
-        <div className="bg-[#1C1C1E] border border-[#2C2C2E] rounded-xl p-4 flex items-start gap-3">
-          <span className="text-xl">💡</span>
+        <div className="card flex items-start gap-3">
+          <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-gray-500">
             Tip: Connect Google Sheets for cloud backup — go to{" "}
             <button onClick={() => navigate("/settings")} className="text-amber-500 hover:underline">
@@ -46,7 +48,9 @@ export default function Dashboard() {
 
       {/* Hero CTA */}
       <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/5 border border-amber-500/30 rounded-2xl p-6 text-center space-y-4">
-        <div className="text-5xl">🚚</div>
+        <div className="flex justify-center">
+          <Truck className="w-12 h-12 text-amber-500" />
+        </div>
         <h1 className="text-2xl font-bold">DispatchFlow</h1>
         <p className="text-gray-400 text-sm max-w-sm mx-auto">
           Scan dispatch tags with AI and generate professional dispatch slips instantly.
@@ -66,7 +70,7 @@ export default function Dashboard() {
           <div className="text-xs text-gray-500 mt-1">Today's Dispatches</div>
         </div>
         <div className="card text-center">
-          <div className="text-3xl font-bold text-gray-300 font-mono">{slips.length}</div>
+          <div className="text-3xl font-bold text-slate-700 dark:text-gray-300 font-mono">{slips.length}</div>
           <div className="text-xs text-gray-500 mt-1">Total Slips</div>
         </div>
       </div>
@@ -85,7 +89,7 @@ export default function Dashboard() {
               <div
                 key={slip.slipNumber}
                 onClick={() => navigate(`/history/${slip.slipNumber}`)}
-                className="card hover:border-[#4A4A4C] cursor-pointer flex items-center justify-between gap-3"
+                className="card hover:border-slate-300 dark:hover:border-[#4A4A4C] cursor-pointer flex items-center justify-between gap-3"
               >
                 <div className="flex-1 min-w-0">
                   <span className="slip-number text-sm">{slip.slipNumber}</span>
