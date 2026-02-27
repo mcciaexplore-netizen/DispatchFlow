@@ -1,10 +1,4 @@
-import { useEffect } from "react";
-
 export default function CameraView({ videoRef, onCapture, onClose }) {
-  useEffect(() => {
-    return () => {};
-  }, []);
-
   return (
     <div className="relative rounded-xl overflow-hidden border-2 border-amber-500 bg-black">
       <video
