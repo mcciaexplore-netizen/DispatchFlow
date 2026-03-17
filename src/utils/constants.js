@@ -11,10 +11,10 @@ export const LS_KEYS = {
 
 // ── Gemini ───────────────────────────────────────────────────────────────────
 export const GEMINI_API_BASE           = "https://generativelanguage.googleapis.com/v1beta/models";
-// Primary model — active and broadly available on v1beta
-export const GEMINI_MODEL              = "gemini-2.0-flash";
+// Primary model — requested default for high speed/cost efficiency
+export const GEMINI_MODEL              = "gemini-2.5-flash-lite";
 export const GEMINI_API_URL            = `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent`;
-// Fallback model — lighter variant used when primary fails
+// Fallback model — stable backup when primary is unavailable
 export const GEMINI_MODEL_FALLBACK     = "gemini-2.0-flash-lite";
 export const GEMINI_API_URL_FALLBACK   = `${GEMINI_API_BASE}/${GEMINI_MODEL_FALLBACK}:generateContent`;
 export const GEMINI_MAX_TOKENS         = 2048;
