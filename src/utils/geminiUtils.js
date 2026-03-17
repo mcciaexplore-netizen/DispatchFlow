@@ -44,6 +44,33 @@ export function parseGeminiJSON(text) {
   throw new Error("Gemini did not return a valid JSON object. Try a clearer image.");
 }
 
+async function callGeminiEndpoint(url, requestBody, retryCount, modelLabel) {
+  try {
+    const res = await fetchWithRetry(
+      url,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) },
+      retryCount
+    );
+    const data = await res.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    return { ok: true, rawText };
+  } catch (err) {
+    const status = err?.status ?? err?.statusCode ?? 0;
+    let apiMessage = err?.message || "Unknown Gemini error";
+
+    if (err?.response) {
+      const body = await err.response.json().catch(() => ({}));
+      apiMessage = body?.error?.message || apiMessage;
+    }
+
+    return {
+      ok: false,
+      status,
+      message: `[Gemini:${modelLabel}] ${apiMessage}`,
+    };
+  }
+}
+
 /**
  * Call Gemini with automatic model cascade:
  *   1. Gemini 1.5 Flash Latest — stable, tried first
@@ -70,34 +97,26 @@ export async function callGeminiWithFallback(requestBody, apiKey, options = {}) 
     },
   };
 
-  // ── Primary: Gemini 1.5 Flash Latest ──────────────────────────────
-  try {
-    const res = await fetchWithRetry(
-      `${PRIMARY_URL}?key=${apiKey}`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(primaryBody) },
-      retryCount
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      if (rawText) {
-        try { return parseGeminiJSON(rawText); } catch (_) {
-          // JSON garbled — fall through to 1.5 Flash
-          console.warn("[Gemini] 1.5 Flash Latest returned unparseable JSON — retrying with 1.5 Flash");
-        }
-      }
-    } else {
-      const err = await res.json().catch(() => ({}));
-      const msg = err.error?.message || res.statusText;
-      // Only fall through on quota / rate-limit errors
-      if (res.status !== 429 && res.status !== 503 && res.status !== 500) {
-        throw new Error(`Gemini API error: ${msg}`);
-      }
-      console.warn(`[Gemini] 1.5 Flash Latest error ${res.status} — retrying with 1.5 Flash`);
+  // ── Primary model call ────────────────────────────────────────────────────
+  const primaryResult = await callGeminiEndpoint(
+    `${PRIMARY_URL}?key=${apiKey}`,
+    primaryBody,
+    retryCount,
+    "primary"
+  );
+
+  if (primaryResult.ok && primaryResult.rawText) {
+    try {
+      return parseGeminiJSON(primaryResult.rawText);
+    } catch (_) {
+      // JSON garbled — fall through to fallback model
+      console.warn("[Gemini] Primary model returned unparseable JSON — retrying with fallback model");
     }
-  } catch (e) {
-    if (e.message.startsWith("Gemini API error")) throw e;
-    console.warn("[Gemini] 1.5 Flash Latest network error — retrying with 1.5 Flash", e.message);
+  } else if (primaryResult.ok && !primaryResult.rawText) {
+    console.warn("[Gemini] Primary model returned empty text — retrying with fallback model");
+  } else {
+    // Fall through for model-not-found, quota, or transient server errors
+    console.warn(`${primaryResult.message} — retrying with fallback model`);
   }
 
   // ── Fallback: Gemini 1.5 Flash with forced JSON output ───────────────────
@@ -109,20 +128,21 @@ export async function callGeminiWithFallback(requestBody, apiKey, options = {}) 
     },
   };
 
-  const res2 = await fetchWithRetry(
+  const fallbackResult = await callGeminiEndpoint(
     `${FALLBACK_URL}?key=${apiKey}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fallbackBody) },
-    retryCount
+    fallbackBody,
+    retryCount,
+    "fallback"
   );
 
-  if (!res2.ok) {
-    const err = await res2.json().catch(() => ({}));
-    throw new Error(`Gemini API error: ${err.error?.message || res2.statusText}`);
+  if (!fallbackResult.ok) {
+    const primaryMsg = primaryResult.ok ? "[Gemini:primary] no usable text response" : primaryResult.message;
+    throw new Error(`${primaryMsg}; ${fallbackResult.message}`);
   }
 
-  const data2 = await res2.json();
-  const text2 = data2.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text2) throw new Error("No response from Gemini. Check your API key and try again.");
+  if (!fallbackResult.rawText) {
+    throw new Error("Gemini returned empty text from fallback model. Check API key and model access.");
+  }
 
-  return parseGeminiJSON(text2);
+  return parseGeminiJSON(fallbackResult.rawText);
 }
