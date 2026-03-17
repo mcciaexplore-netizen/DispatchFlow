@@ -46,9 +46,9 @@ export function parseGeminiJSON(text) {
 
 /**
  * Call Gemini with automatic model cascade:
- *   1. Gemini 2.0 Flash      — fast, stable, tried first
- *   2. Gemini 2.0 Flash Lite  — lightweight fallback; adds responseMimeType:"application/json"
- *                               to guarantee clean JSON when primary fails or garbles output
+ *   1. Gemini 1.5 Flash Latest — stable, tried first
+ *   2. Gemini 1.5 Flash         — universal fallback; adds responseMimeType:"application/json"
+ *                                 to guarantee clean JSON when primary fails or garbles output
  *
  * If both fail, throws the last error received.
  *
@@ -70,7 +70,7 @@ export async function callGeminiWithFallback(requestBody, apiKey, options = {}) 
     },
   };
 
-  // ── Primary: Gemini 2.0 Flash ───────────────────────────────────────────
+  // ── Primary: Gemini 1.5 Flash Latest ──────────────────────────────
   try {
     const res = await fetchWithRetry(
       `${PRIMARY_URL}?key=${apiKey}`,
@@ -83,7 +83,7 @@ export async function callGeminiWithFallback(requestBody, apiKey, options = {}) 
       if (rawText) {
         try { return parseGeminiJSON(rawText); } catch (_) {
           // JSON garbled — fall through to 1.5 Flash
-          console.warn("[Gemini] 2.0 Flash returned unparseable JSON — retrying with 2.0 Flash Lite");
+          console.warn("[Gemini] 1.5 Flash Latest returned unparseable JSON — retrying with 1.5 Flash");
         }
       }
     } else {
@@ -93,14 +93,14 @@ export async function callGeminiWithFallback(requestBody, apiKey, options = {}) 
       if (res.status !== 429 && res.status !== 503 && res.status !== 500) {
         throw new Error(`Gemini API error: ${msg}`);
       }
-      console.warn(`[Gemini] 2.0 Flash error ${res.status} — retrying with 2.0 Flash Lite`);
+      console.warn(`[Gemini] 1.5 Flash Latest error ${res.status} — retrying with 1.5 Flash`);
     }
   } catch (e) {
     if (e.message.startsWith("Gemini API error")) throw e;
-    console.warn("[Gemini] 2.0 Flash network error — retrying with 2.0 Flash Lite", e.message);
+    console.warn("[Gemini] 1.5 Flash Latest network error — retrying with 1.5 Flash", e.message);
   }
 
-  // ── Fallback: Gemini 2.0 Flash Lite with forced JSON output ──────────────
+  // ── Fallback: Gemini 1.5 Flash with forced JSON output ───────────────────
   const fallbackBody = {
     ...requestBody,
     generationConfig: {
